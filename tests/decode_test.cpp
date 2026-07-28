@@ -7,7 +7,9 @@
 
 #include "dronesim/mavlink.h"
 
+#include "command_sender.h"
 #include "entity_model.h"
+#include "geo.h"
 #include "mavlink_listener.h"
 
 // Decoding is the other silent failure mode: a wrong field mapping produces a
@@ -27,6 +29,8 @@ class DecodeTest : public QObject {
             {"DRONESIM_STATUS", MAVLINK_MSG_ID_DRONESIM_STATUS},
             {"DRONESIM_OBJECTIVE", MAVLINK_MSG_ID_DRONESIM_OBJECTIVE},
             {"DRONESIM_SAM_SITE", MAVLINK_MSG_ID_DRONESIM_SAM_SITE},
+            {"DRONESIM_SPAWN_OBJECTIVE", MAVLINK_MSG_ID_DRONESIM_SPAWN_OBJECTIVE},
+            {"DRONESIM_DISPATCH", MAVLINK_MSG_ID_DRONESIM_DISPATCH},
         };
         return ids.value(name, -1);
     }
@@ -210,6 +214,38 @@ private slots:
         QCOMPARE(ev.last().first().toString(), QStringLiteral("mission SUCCESS"));
         QCOMPARE(w.objectives().size(), 1);
         QCOMPARE(w.samSites().size(), 1);
+    }
+
+    // The uplink direction, pinned the same way the downlink is: the sim's
+    // vector generator packed these two frames with pymavlink, so a mismatch
+    // means this GCS is transmitting something the sim will silently drop.
+    void uplink_encoding_matches_golden_vectors()
+    {
+        const auto f = frames();
+        // The vectors were framed as sysid 7 / compid 1; the running app uses
+        // 255/190, but that is a configured identity, not a wire fact.
+        QCOMPARE(CommandSender::encodeSpawn(7, 1, 9, 518234567, 98765432, 137.5f, 2).toHex(),
+                 f.value("dronesim_spawn_objective").toHex());
+
+        QCOMPARE(CommandSender::encodeDispatch(7, 1, 10, 517654321, 99887766, 0xD00005, 4).toHex(),
+                 f.value("dronesim_dispatch").toHex());
+    }
+
+    // Round trip through the map's two transforms: whatever a right-click
+    // resolves to must come back to the same pixel, or commands land somewhere
+    // other than where the operator clicked.
+    void latlon_round_trips()
+    {
+        const MapMeta m = MapMeta::load(QStringLiteral(":/sebexen/map.json"));
+        for (const QPointF &local : {QPointF(0, 0), QPointF(1200, -900), QPointF(-450.25, 1750.5)}) {
+            const QPointF ll = localToLatlon(m, local);
+            const QPointF back = latlonToLocal(m, ll.x(), ll.y());
+            QVERIFY2(std::abs(back.x() - local.x()) < 1e-3
+                         && std::abs(back.y() - local.y()) < 1e-3,
+                     qPrintable(QStringLiteral("%1,%2 -> %3,%4")
+                                    .arg(local.x()).arg(local.y())
+                                    .arg(back.x()).arg(back.y())));
+        }
     }
 
     void contacts_age_out()

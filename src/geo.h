@@ -28,3 +28,6 @@ struct MapMeta {
 
 // WGS84 -> sim-local metres (x east, y holds sim +Z south), via UTM.
 QPointF latlonToLocal(const MapMeta &m, double lat_deg, double lon_deg);
+
+// The reverse: local metres -> (latitude, longitude) in degrees.
+QPointF localToLatlon(const MapMeta &m, QPointF local);

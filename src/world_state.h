@@ -2,6 +2,10 @@
 
 #include <QHash>
 #include <QObject>
+#include <QString>
+
+// OBSERVE / CRASH / DELIVER, shared by the log, the map and the uplink menu.
+QString objectiveTypeName(quint8 type);
 
 // Sim-only state from the dronesim dialect (msgids 55000+). Objectives and SAM
 // sites are keyed by their per-run id and age out exactly like ADS-B traffic:

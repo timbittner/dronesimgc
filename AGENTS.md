@@ -61,13 +61,32 @@ are sent once per object per tick. What the field list does not say:
 - `id` is a small per-run integer from 1, stable for the object's life and
   never reused — safe to key on, but **not** stable across runs.
 - Objectives and SAM sites age out like ADS-B: one that stops being sent
-  is gone. Nothing spawns or despawns until 9.3.
+  is gone. From 9.3 an objective can also appear mid-run, from our own
+  uplink — the new id in the next burst is the only confirmation there is.
 - Absent sim nodes are normal, not errors: no MissionTracker reports
   RUNNING, no SwarmManager reports `backup_pool = 0`. "No swarm manager"
   and "pool empty" are indistinguishable — do not build a heuristic on it.
 - `friendly_count`/`hostile_count` are redundant with the heartbeat and
   ADS-B tracking. Sanity check or ignore.
 - Stock QGC ignores unknown msgids, so the P8 conformance check stands.
+
+## Uplink Contract (P9.3 — what the GCS sends)
+
+Two dialect messages to the sim's **UDP 14556** (`command_port`), not 14550 —
+the GCS holds that one to receive. The GCS transmits as sysid 255 / compid 190
+and the sim accepts any sysid.
+
+- `DRONESIM_SPAWN_OBJECTIVE` (55003): lat, lon, radius, type. Height and dwell
+  come from the sim's scene defaults; the sim clamps radius to 5–500 m and
+  drops anything more than 5 km from the sim origin.
+- `DRONESIM_DISPATCH` (55004): lat, lon, icao, sysid. `icao != 0` strikes that
+  ADS-B contact and ignores lat/lon; `sysid = 0` means nearest formation
+  follower. A contact the sim has already lost drops the command.
+- **Nothing is acknowledged, by design.** A spawn confirms itself in the next
+  `DRONESIM_OBJECTIVE` burst, a dispatch by the drone moving. Log commands as
+  *sent*, never as *done*.
+- The uplink is LAN-trusted with no auth (`ponytail:` localhost sim). The sim
+  validates; the GCS does not pretend to.
 
 ## Map / Georeference
 

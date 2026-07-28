@@ -5,9 +5,10 @@ swarm simulator. It listens to the sim's MAVLink v2 downlink and renders the
 battlespace over the baked Sebexen map: friendlies as vehicles, hostiles and
 SAM interceptors as ADS-B traffic.
 
-Phase 9.2: read-only — entity table, map view, mission/pool panel and event
-log, over the P8 stream plus the sim's custom dialect (objectives, SAM sites,
-mission state).
+Phase 9.3: the full loop — entity table, map view, mission/pool panel and event
+log over the P8 stream plus the sim's custom dialect (objectives, SAM sites,
+mission state), and commands back the other way: right-click the map to spawn
+an objective, dispatch a drone, or send one at a hostile.
 
 ## Build
 
@@ -25,7 +26,9 @@ Qt 6.4 is the minimum (what CI builds against).
 
 Start the sim, then the GCS — it binds UDP 14550 and shows whatever it hears.
 **Close QGroundControl first:** both want that port, and only one gets it (the
-status bar says so if the bind fails).
+status bar says so if the bind fails). Commands go out to 127.0.0.1:14556,
+which is where the sim listens; nothing acknowledges them, so a command is
+confirmed by the world changing on the downlink.
 
 ## Syncing from the sim
 

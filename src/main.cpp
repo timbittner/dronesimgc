@@ -5,6 +5,7 @@
 #include <QStatusBar>
 #include <QTableView>
 
+#include "command_sender.h"
 #include "detail_pane.h"
 #include "entity_model.h"
 #include "event_log.h"
@@ -42,6 +43,16 @@ int main(int argc, char **argv)
     auto *log = new EventLog;
     QObject::connect(world, &WorldState::event, log, &EventLog::append);
 
+    // Uplink (P9.3). Commands are logged as sent, never as done: the sim acks
+    // nothing, so the proof of a command is the world changing on the downlink.
+    auto *commands = new CommandSender(&app);
+    QObject::connect(commands, &CommandSender::sent, log, &EventLog::append);
+    QObject::connect(map, &MapView::spawnRequested, commands,
+                     [commands](double lat, double lon, quint8 type) {
+                         commands->spawnObjective(lat, lon, type);
+                     });
+    QObject::connect(map, &MapView::dispatchRequested, commands, &CommandSender::dispatch);
+
     QObject::connect(map, &MapView::selectionChanged, table, [table, model](quint64 key) {
         const int row = model->rowOf(key);
         if (row < 0)
@@ -72,7 +83,9 @@ int main(int argc, char **argv)
     win.resize(1400, 860);
     win.statusBar()->showMessage(
         listener->listen()
-            ? QStringLiteral("listening on UDP %1").arg(MavlinkListener::kDefaultPort)
+            ? QStringLiteral("listening on UDP %1, commands to %2")
+                  .arg(MavlinkListener::kDefaultPort)
+                  .arg(CommandSender::kDefaultPort)
             : QStringLiteral("cannot bind UDP %1 — is QGroundControl running?")
                   .arg(MavlinkListener::kDefaultPort));
     win.show();

@@ -5,21 +5,21 @@
 
 namespace {
 constexpr qint64 kStaleMs = 5000;  // same age-out as ADS-B contacts
-
-const char *typeName(quint8 t)
-{
-    switch (t) {
-    case 0: return "OBSERVE";
-    case 1: return "CRASH";
-    case 2: return "DELIVER";
-    }
-    return "?";
-}
 }  // namespace
+
+QString objectiveTypeName(quint8 type)
+{
+    switch (type) {
+    case 0: return QStringLiteral("OBSERVE");
+    case 1: return QStringLiteral("CRASH");
+    case 2: return QStringLiteral("DELIVER");
+    }
+    return QStringLiteral("?");
+}
 
 QString Objective::label() const
 {
-    return QStringLiteral("%1 %2").arg(typeName(type)).arg(id);
+    return QStringLiteral("%1 %2").arg(objectiveTypeName(type)).arg(id);
 }
 
 QString MissionStatus::stateName() const

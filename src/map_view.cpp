@@ -1,5 +1,7 @@
 #include "map_view.h"
 
+#include <QContextMenuEvent>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QTimer>
@@ -120,19 +122,63 @@ void MapView::paintEvent(QPaintEvent *)
                meta_.attribution.join(" | "));
 }
 
-void MapView::mousePressEvent(QMouseEvent *ev)
+const Entity *MapView::contactAt(QPointF pos) const
 {
     const QTransform t = localToWidget();
-    quint64 hit = 0;
+    const Entity *hit = nullptr;
     double best = 14.0;  // px
     for (const Entity &e : model_->entities()) {
-        const QPointF d = t.map(latlonToLocal(meta_, e.lat, e.lon)) - ev->position();
+        const QPointF d = t.map(latlonToLocal(meta_, e.lat, e.lon)) - pos;
         const double dist = std::hypot(d.x(), d.y());
         if (dist < best) {
             best = dist;
-            hit = e.key();
+            hit = &e;
         }
     }
-    setSelected(hit);
-    emit selectionChanged(hit);
+    return hit;
+}
+
+void MapView::mousePressEvent(QMouseEvent *ev)
+{
+    const Entity *hit = contactAt(ev->position());
+    const quint64 key = hit ? hit->key() : 0;
+    setSelected(key);
+    emit selectionChanged(key);
+}
+
+// Right-click is the whole uplink UI (P9.3): the map is the only place that
+// knows what a point on the screen means, so it turns the click into lat/lon
+// and asks for a command. Nothing here talks to a socket.
+void MapView::contextMenuEvent(QContextMenuEvent *ev)
+{
+    const QPointF pos = ev->pos();
+    const QPointF ll = localToLatlon(meta_, localToWidget().inverted().map(pos));
+    const Entity *under = contactAt(pos);
+    // The selected friendly is who a dispatch names; 0 means "nearest", which
+    // is also what a non-friendly selection falls back to.
+    quint8 from = 0;
+    const int sel = model_->rowOf(selected_);
+    if (sel >= 0 && model_->entities()[sel].kind == Entity::Friendly)
+        from = quint8(model_->entities()[sel].id);
+
+    QMenu menu(this);
+    if (under && under->kind == Entity::Hostile) {
+        const quint32 icao = under->id;
+        menu.addAction(QStringLiteral("Strike %1").arg(under->name), this,
+                       [this, ll, icao, from] {
+                           emit dispatchRequested(ll.x(), ll.y(), icao, from);
+                       });
+        menu.addSeparator();
+    }
+    menu.addAction(from == 0 ? QStringLiteral("Dispatch nearest here")
+                             : QStringLiteral("Dispatch %1 here")
+                                   .arg(model_->entities()[sel].name),
+                   this, [this, ll, from] {
+                       emit dispatchRequested(ll.x(), ll.y(), 0, from);
+                   });
+    menu.addSeparator();
+    for (quint8 type = 0; type < 3; ++type)
+        menu.addAction(QStringLiteral("Spawn %1 objective here").arg(objectiveTypeName(type)),
+                       this, [this, ll, type] { emit spawnRequested(ll.x(), ll.y(), type); });
+    menu.exec(ev->globalPos());
 }

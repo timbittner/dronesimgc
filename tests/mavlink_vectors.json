@@ -69,6 +69,20 @@
       "sysid": 7,
       "compid": 1,
       "hex": "fd110000080701dad600c7a1e31e780ae30500007a440000803e032d85"
+    },
+    {
+      "name": "dronesim_spawn_objective",
+      "seq": 9,
+      "sysid": 7,
+      "compid": 1,
+      "hex": "fd0d0000090701dbd600c7a1e31e780ae30500800943021c97"
+    },
+    {
+      "name": "dronesim_dispatch",
+      "seq": 10,
+      "sysid": 7,
+      "compid": 1,
+      "hex": "fd0d00000a0701dcd60031c7da1e962af4050500d0000449ee"
     }
   ],
   "geo": {
@@ -111,6 +125,8 @@
     "ADSB_VEHICLE": 184,
     "DRONESIM_STATUS": 94,
     "DRONESIM_OBJECTIVE": 221,
-    "DRONESIM_SAM_SITE": 146
+    "DRONESIM_SAM_SITE": 146,
+    "DRONESIM_SPAWN_OBJECTIVE": 84,
+    "DRONESIM_DISPATCH": 233
   }
 }
