@@ -44,12 +44,14 @@ dronesimgc session needs without opening the sim repo.
   (`.venv/bin/pip install pymavlink`, then mavgen against the XML).
 - Golden wire vectors: `dronesim/scripts/test/mavlink_vectors.json`
   (`frames` = hex-pinned packets, `geo` = local↔lat/lon pairs from
-  pyproj). Decode and transform tests pin against them.
+  pyproj), copied to `tests/` by `tools/sync_map.sh` so CI needs no
+  dronesim checkout. Decode and transform tests pin against them.
 
 ## Map / Georeference
 
 `assets/sebexen/albedo.png` + `map.json` are copied from dronesim by
-`tools/sync_map.sh` — never edited here. `map.json` keys: `cell_size`
+`tools/sync_map.sh` (never edited here) and compiled in as Qt resources
+under `:/sebexen/`. `map.json` keys: `cell_size`
 (metres/pixel), `grid_width`/`grid_height` (pixels), `origin_x`/`origin_z`
 (sim-local metres of pixel (0,0)), `height_datum` (AMSL metres of local
 y = 0), `utm` (`epsg` 25832, `e_min`, `n_max`, `spawn_e`/`spawn_n`).
