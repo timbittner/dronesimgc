@@ -13,6 +13,7 @@ qt_add_library(gcs_core STATIC
     src/entity_model.cpp
     src/world_state.cpp
     src/detail_pane.cpp
+    src/event_log.cpp
     src/map_view.cpp
 )
 target_include_directories(gcs_core PUBLIC src third_party/mavlink)

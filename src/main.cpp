@@ -1,14 +1,13 @@
 #include <QApplication>
 #include <QHeaderView>
-#include <QListWidget>
 #include <QMainWindow>
 #include <QSplitter>
 #include <QStatusBar>
 #include <QTableView>
-#include <QTime>
 
 #include "detail_pane.h"
 #include "entity_model.h"
+#include "event_log.h"
 #include "map_view.h"
 #include "mavlink_listener.h"
 #include "world_state.h"
@@ -38,16 +37,10 @@ int main(int argc, char **argv)
     auto *detail = new DetailPane(model, world);
     auto *map = new MapView(model, world, meta);
 
-    // The log is a plain list — the transitions worth logging are detected in
-    // WorldState, where the previous value lives.
-    auto *log = new QListWidget;
-    log->setMaximumHeight(140);
-    QObject::connect(world, &WorldState::event, log, [log](const QString &line) {
-        log->addItem(QTime::currentTime().toString("HH:mm:ss ") + line);
-        log->scrollToBottom();
-        while (log->count() > 500)
-            delete log->takeItem(0);
-    });
+    // Transitions worth logging are detected in WorldState, where the previous
+    // value lives; the log only renders them.
+    auto *log = new EventLog;
+    QObject::connect(world, &WorldState::event, log, &EventLog::append);
 
     QObject::connect(map, &MapView::selectionChanged, table, [table, model](quint64 key) {
         const int row = model->rowOf(key);
