@@ -341,6 +341,65 @@ static void mavlink_test_dronesim_dispatch(uint8_t system_id, uint8_t component_
 #endif
 }
 
+static void mavlink_test_dronesim_clear(uint8_t system_id, uint8_t component_id, mavlink_message_t *last_msg)
+{
+#ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
+    mavlink_status_t *status = mavlink_get_channel_status(MAVLINK_COMM_0);
+        if ((status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) && MAVLINK_MSG_ID_DRONESIM_CLEAR >= 256) {
+            return;
+        }
+#endif
+    mavlink_message_t msg;
+        uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+        uint16_t i;
+    mavlink_dronesim_clear_t packet_in = {
+        5
+    };
+    mavlink_dronesim_clear_t packet1, packet2;
+        memset(&packet1, 0, sizeof(packet1));
+        packet1.confirm = packet_in.confirm;
+        
+        
+#ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
+        if (status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) {
+           // cope with extensions
+           memset(MAVLINK_MSG_ID_DRONESIM_CLEAR_MIN_LEN + (char *)&packet1, 0, sizeof(packet1)-MAVLINK_MSG_ID_DRONESIM_CLEAR_MIN_LEN);
+        }
+#endif
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_dronesim_clear_encode(system_id, component_id, &msg, &packet1);
+    mavlink_msg_dronesim_clear_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_dronesim_clear_pack(system_id, component_id, &msg , packet1.confirm );
+    mavlink_msg_dronesim_clear_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_dronesim_clear_pack_chan(system_id, component_id, MAVLINK_COMM_0, &msg , packet1.confirm );
+    mavlink_msg_dronesim_clear_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+        mavlink_msg_to_send_buffer(buffer, &msg);
+        for (i=0; i<mavlink_msg_get_send_buffer_length(&msg); i++) {
+            comm_send_ch(MAVLINK_COMM_0, buffer[i]);
+        }
+    mavlink_msg_dronesim_clear_decode(last_msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+        
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_dronesim_clear_send(MAVLINK_COMM_1 , packet1.confirm );
+    mavlink_msg_dronesim_clear_decode(last_msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+#ifdef MAVLINK_HAVE_GET_MESSAGE_INFO
+    MAVLINK_ASSERT(mavlink_get_message_info_by_name("DRONESIM_CLEAR") != NULL);
+    MAVLINK_ASSERT(mavlink_get_message_info_by_id(MAVLINK_MSG_ID_DRONESIM_CLEAR) != NULL);
+#endif
+}
+
 static void mavlink_test_dronesim(uint8_t system_id, uint8_t component_id, mavlink_message_t *last_msg)
 {
     mavlink_test_dronesim_status(system_id, component_id, last_msg);
@@ -348,6 +407,7 @@ static void mavlink_test_dronesim(uint8_t system_id, uint8_t component_id, mavli
     mavlink_test_dronesim_sam_site(system_id, component_id, last_msg);
     mavlink_test_dronesim_spawn_objective(system_id, component_id, last_msg);
     mavlink_test_dronesim_dispatch(system_id, component_id, last_msg);
+    mavlink_test_dronesim_clear(system_id, component_id, last_msg);
 }
 
 #ifdef __cplusplus

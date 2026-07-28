@@ -53,6 +53,24 @@ QByteArray CommandSender::encodeDispatch(quint8 sysid, quint8 compid, quint8 seq
     return toBytes(msg);
 }
 
+QByteArray CommandSender::encodeClear(quint8 sysid, quint8 compid, quint8 seq,
+                                      quint8 confirm)
+{
+    mavlink_message_t msg;
+    mavlink_get_channel_status(kTxChan)->current_tx_seq = seq;
+    mavlink_msg_dronesim_clear_pack_chan(sysid, compid, kTxChan, &msg, confirm);
+    return toBytes(msg);
+}
+
+void CommandSender::clearWorld()
+{
+    // confirm = 1: the sim ignores anything else, so a truncated packet cannot
+    // wipe a scenario by accident.
+    socket_.writeDatagram(encodeClear(kSysid, kCompid, seq_++, 1),
+                          QHostAddress(host_), port_);
+    emit sent(QStringLiteral("sent clear — despawning commanded objectives"));
+}
+
 void CommandSender::spawnObjective(double lat, double lon, quint8 type, float radius)
 {
     socket_.writeDatagram(encodeSpawn(kSysid, kCompid, seq_++, e7(lat), e7(lon), radius, type),

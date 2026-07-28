@@ -5,10 +5,12 @@ swarm simulator. It listens to the sim's MAVLink v2 downlink and renders the
 battlespace over the baked Sebexen map: friendlies as vehicles, hostiles and
 SAM interceptors as ADS-B traffic.
 
-Phase 9.3: the full loop — entity table, map view, mission/pool panel and event
-log over the P8 stream plus the sim's custom dialect (objectives, SAM sites,
-mission state), and commands back the other way: right-click the map to spawn
-an objective, dispatch a drone, or send one at a hostile.
+Phase 9.4 — feature complete. Entity table, map view, mission/pool panel and
+event log over the P8 stream plus the sim's custom dialect (objectives, SAM
+sites, mission state); commands back the other way (right-click the map to
+spawn an objective, dispatch a drone, or send one at a hostile); and scenarios,
+which are just the spawn commands that built the world, saved as JSON and
+replayed on load.
 
 ## Build
 

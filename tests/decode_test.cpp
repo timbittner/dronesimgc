@@ -1,3 +1,4 @@
+#include <QDir>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -11,6 +12,7 @@
 #include "entity_model.h"
 #include "geo.h"
 #include "mavlink_listener.h"
+#include "scenario.h"
 
 // Decoding is the other silent failure mode: a wrong field mapping produces a
 // contact that simply flies wrong. The golden vectors are the same ones the
@@ -31,6 +33,7 @@ class DecodeTest : public QObject {
             {"DRONESIM_SAM_SITE", MAVLINK_MSG_ID_DRONESIM_SAM_SITE},
             {"DRONESIM_SPAWN_OBJECTIVE", MAVLINK_MSG_ID_DRONESIM_SPAWN_OBJECTIVE},
             {"DRONESIM_DISPATCH", MAVLINK_MSG_ID_DRONESIM_DISPATCH},
+            {"DRONESIM_CLEAR", MAVLINK_MSG_ID_DRONESIM_CLEAR},
         };
         return ids.value(name, -1);
     }
@@ -229,6 +232,50 @@ private slots:
 
         QCOMPARE(CommandSender::encodeDispatch(7, 1, 10, 517654321, 99887766, 0xD00005, 4).toHex(),
                  f.value("dronesim_dispatch").toHex());
+
+        QCOMPARE(CommandSender::encodeClear(7, 1, 11, 1).toHex(),
+                 f.value("dronesim_clear").toHex());
+    }
+
+    // A scenario is the spawns that built the world, so a round trip through
+    // the file has to give back commands that replay identically — this is the
+    // entire save/load feature, the sim knows nothing about scenarios.
+    void scenario_round_trips()
+    {
+        Scenario a;
+        a.add({51.8248, 10.0263, 50.0f, 0});
+        a.add({51.8100, 10.0100, 125.5f, 2});
+        const QString path = QDir::temp().filePath("dronesimgc_scenario_test.json");
+        QString err;
+        QVERIFY2(a.save(path, &err), qPrintable(err));
+
+        Scenario b;
+        QVERIFY2(b.load(path, &err), qPrintable(err));
+        QCOMPARE(b.spawns().size(), a.spawns().size());
+        for (int i = 0; i < a.spawns().size(); ++i) {
+            QCOMPARE(b.spawns()[i].lat, a.spawns()[i].lat);
+            QCOMPARE(b.spawns()[i].lon, a.spawns()[i].lon);
+            QCOMPARE(b.spawns()[i].radius, a.spawns()[i].radius);
+            QCOMPARE(b.spawns()[i].type, a.spawns()[i].type);
+        }
+        QFile::remove(path);
+    }
+
+    void a_bad_scenario_leaves_the_old_one_alone()
+    {
+        Scenario s;
+        s.add({51.8248, 10.0263, 50.0f, 0});
+        const QString path = QDir::temp().filePath("dronesimgc_scenario_bad.json");
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(R"({"spawns":[{"lat":51.8,"lon":10.0},{"radius":20}]})");
+        f.close();
+
+        QString err;
+        QVERIFY(!s.load(path, &err));       // second entry has no position
+        QVERIFY(!err.isEmpty());
+        QCOMPARE(s.spawns().size(), 1);     // the one we already had, untouched
+        QFile::remove(path);
     }
 
     // Round trip through the map's two transforms: whatever a right-click

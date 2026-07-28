@@ -83,6 +83,13 @@
       "sysid": 7,
       "compid": 1,
       "hex": "fd0d00000a0701dcd60031c7da1e962af4050500d0000449ee"
+    },
+    {
+      "name": "dronesim_clear",
+      "seq": 11,
+      "sysid": 7,
+      "compid": 1,
+      "hex": "fd0100000b0701ddd6000177d4"
     }
   ],
   "geo": {
@@ -127,6 +134,7 @@
     "DRONESIM_OBJECTIVE": 221,
     "DRONESIM_SAM_SITE": 146,
     "DRONESIM_SPAWN_OBJECTIVE": 84,
-    "DRONESIM_DISPATCH": 233
+    "DRONESIM_DISPATCH": 233,
+    "DRONESIM_CLEAR": 237
   }
 }

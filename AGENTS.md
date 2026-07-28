@@ -70,9 +70,9 @@ are sent once per object per tick. What the field list does not say:
   ADS-B tracking. Sanity check or ignore.
 - Stock QGC ignores unknown msgids, so the P8 conformance check stands.
 
-## Uplink Contract (P9.3 — what the GCS sends)
+## Uplink Contract (P9.3/9.4 — what the GCS sends)
 
-Two dialect messages to the sim's **UDP 14556** (`command_port`), not 14550 —
+Three dialect messages to the sim's **UDP 14556** (`command_port`), not 14550 —
 the GCS holds that one to receive. The GCS transmits as sysid 255 / compid 190
 and the sim accepts any sysid.
 
@@ -82,11 +82,24 @@ and the sim accepts any sysid.
 - `DRONESIM_DISPATCH` (55004): lat, lon, icao, sysid. `icao != 0` strikes that
   ADS-B contact and ignores lat/lon; `sysid = 0` means nearest formation
   follower. A contact the sim has already lost drops the command.
+- `DRONESIM_CLEAR` (55005): `confirm` must be 1 — zero is what a truncated
+  packet decodes to, and this is the command that throws work away. It
+  despawns only objectives the uplink spawned and resets the mission tracker.
+  Editor-placed objectives survive: they are part of the map, not the scenario.
 - **Nothing is acknowledged, by design.** A spawn confirms itself in the next
   `DRONESIM_OBJECTIVE` burst, a dispatch by the drone moving. Log commands as
   *sent*, never as *done*.
 - The uplink is LAN-trusted with no auth (`ponytail:` localhost sim). The sim
   validates; the GCS does not pretend to.
+
+## Scenarios (P9.4)
+
+A scenario is **the list of spawn commands that produced the world**, not a
+snapshot of it — which is why save/load needs no state transfer protocol.
+`Scenario` collects each spawn as it is issued and writes JSON; a load sends
+`DRONESIM_CLEAR` and replays the spawns. The sim has no concept of a scenario
+and does not need one. A load that fails to parse leaves the current scenario
+untouched rather than half-replaced.
 
 ## Map / Georeference
 

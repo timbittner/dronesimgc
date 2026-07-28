@@ -1,6 +1,9 @@
 #include <QApplication>
+#include <QFileDialog>
 #include <QHeaderView>
 #include <QMainWindow>
+#include <QMenuBar>
+#include <QMessageBox>
 #include <QSplitter>
 #include <QStatusBar>
 #include <QTableView>
@@ -11,6 +14,7 @@
 #include "event_log.h"
 #include "map_view.h"
 #include "mavlink_listener.h"
+#include "scenario.h"
 #include "world_state.h"
 
 int main(int argc, char **argv)
@@ -47,9 +51,12 @@ int main(int argc, char **argv)
     // nothing, so the proof of a command is the world changing on the downlink.
     auto *commands = new CommandSender(&app);
     QObject::connect(commands, &CommandSender::sent, log, &EventLog::append);
+    // A scenario is just the spawns we issued, so it is built here, as they go.
+    auto *scenario = new Scenario;
     QObject::connect(map, &MapView::spawnRequested, commands,
-                     [commands](double lat, double lon, quint8 type) {
+                     [commands, scenario](double lat, double lon, quint8 type) {
                          commands->spawnObjective(lat, lon, type);
+                         scenario->add({lat, lon, CommandSender::kDefaultRadius, type});
                      });
     QObject::connect(map, &MapView::dispatchRequested, commands, &CommandSender::dispatch);
 
@@ -80,6 +87,40 @@ int main(int argc, char **argv)
 
     QMainWindow win;
     win.setCentralWidget(split);
+
+    // Scenario menu (P9.4). Load is CLEAR followed by the saved spawns — the
+    // sim has no other idea of "a scenario", and does not need one.
+    QMenu *menu = win.menuBar()->addMenu(QStringLiteral("&Scenario"));
+    menu->addAction(QStringLiteral("&Save…"), &win, [&win, scenario, log] {
+        const QString path = QFileDialog::getSaveFileName(
+            &win, QStringLiteral("Save scenario"), {}, QStringLiteral("JSON (*.json)"));
+        if (path.isEmpty())
+            return;
+        QString err;
+        if (scenario->save(path, &err))
+            log->append(QStringLiteral("scenario saved (%1 spawns)").arg(scenario->spawns().size()));
+        else
+            QMessageBox::warning(&win, QStringLiteral("Save failed"), err);
+    });
+    menu->addAction(QStringLiteral("&Load…"), &win, [&win, scenario, commands, log] {
+        const QString path = QFileDialog::getOpenFileName(
+            &win, QStringLiteral("Load scenario"), {}, QStringLiteral("JSON (*.json)"));
+        if (path.isEmpty())
+            return;
+        QString err;
+        if (!scenario->load(path, &err)) {
+            QMessageBox::warning(&win, QStringLiteral("Load failed"), err);
+            return;
+        }
+        commands->clearWorld();
+        for (const SpawnRecord &r : scenario->spawns())
+            commands->spawnObjective(r.lat, r.lon, r.type, r.radius);
+        log->append(QStringLiteral("scenario loaded (%1 spawns)").arg(scenario->spawns().size()));
+    });
+    menu->addAction(QStringLiteral("&Clear"), &win, [scenario, commands] {
+        scenario->clear();
+        commands->clearWorld();
+    });
     win.resize(1400, 860);
     win.statusBar()->showMessage(
         listener->listen()

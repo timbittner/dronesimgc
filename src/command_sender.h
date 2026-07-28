@@ -31,11 +31,15 @@ public:
     static QByteArray encodeDispatch(quint8 sysid, quint8 compid, quint8 seq,
                                      qint32 lat_e7, qint32 lon_e7, quint32 icao,
                                      quint8 target_sysid);
+    static QByteArray encodeClear(quint8 sysid, quint8 compid, quint8 seq,
+                                  quint8 confirm);
 
 public slots:
     void spawnObjective(double lat, double lon, quint8 type,
                         float radius = kDefaultRadius);
     void dispatch(double lat, double lon, quint32 icao, quint8 target_sysid);
+    // Despawns the uplink's own objectives sim-side. The scene's own survive.
+    void clearWorld();
 
 signals:
     void sent(const QString &line);  // for the event log

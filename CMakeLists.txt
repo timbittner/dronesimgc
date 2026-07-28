@@ -15,6 +15,7 @@ qt_add_library(gcs_core STATIC
     src/detail_pane.cpp
     src/event_log.cpp
     src/command_sender.cpp
+    src/scenario.cpp
     src/map_view.cpp
 )
 target_include_directories(gcs_core PUBLIC src third_party/mavlink)
