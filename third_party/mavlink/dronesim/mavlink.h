@@ -1,12 +1,12 @@
 /** @file
- *  @brief MAVLink comm protocol built from standard.xml
+ *  @brief MAVLink comm protocol built from dronesim.xml
  *  @see http://mavlink.org
  */
 #pragma once
 #ifndef MAVLINK_H
 #define MAVLINK_H
 
-#define MAVLINK_PRIMARY_XML_HASH -3269048363280228067
+#define MAVLINK_PRIMARY_XML_HASH -3255573257424536848
 
 #ifndef MAVLINK_STX
 #define MAVLINK_STX 253
@@ -29,6 +29,6 @@
 #endif
 
 #include "version.h"
-#include "standard.h"
+#include "dronesim.h"
 
 #endif // MAVLINK_H

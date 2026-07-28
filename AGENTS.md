@@ -38,14 +38,36 @@ dronesimgc session needs without opening the sim repo.
   receiver-side: heartbeat timeout for systems, last-seen for ADS-B.
 - sysid 1 is always the player. Other drones take ids from 2 up, never
   reused; a replacement airframe gets a **new** sysid.
-- The custom dialect (`dronesim.xml`, msgids 55000+, from phase 9.2)
-  lives in the dronesim repo — the producer owns the protocol. When it
-  changes, regenerate the vendored headers with mavgen
-  (`.venv/bin/pip install pymavlink`, then mavgen against the XML).
+- The custom dialect (`dronesim.xml`, msgids 55000+) lives in the dronesim
+  repo — the producer owns the protocol, this repo never edits the XML.
+  `tools/sync_dialect.sh` regenerates `third_party/mavlink/` from it; run
+  `tools/sync_map.sh` after, for the matching golden vectors.
 - Golden wire vectors: `dronesim/scripts/test/mavlink_vectors.json`
   (`frames` = hex-pinned packets, `geo` = local↔lat/lon pairs from
   pyproj), copied to `tests/` by `tools/sync_map.sh` so CI needs no
   dronesim checkout. Decode and transform tests pin against them.
+
+## Dialect Contract (P9.2 downlink — sim-only state)
+
+Three messages at 1 Hz from sysid 1, all fields listed in the XML in wire
+order. `DRONESIM_STATUS` (55000) carries mission state, backup pool and
+live counts; `DRONESIM_OBJECTIVE` (55001) and `DRONESIM_SAM_SITE` (55002)
+are sent once per object per tick. What the field list does not say:
+
+- `reload_progress >= 1.0` **is** "ready to fire" — there is deliberately
+  no ready flag. It is 0 immediately after a launch.
+- `progress` is OBSERVE dwell only, always 0 for CRASH/DELIVER. Do not
+  render it as a generic progress bar.
+- `id` is a small per-run integer from 1, stable for the object's life and
+  never reused — safe to key on, but **not** stable across runs.
+- Objectives and SAM sites age out like ADS-B: one that stops being sent
+  is gone. Nothing spawns or despawns until 9.3.
+- Absent sim nodes are normal, not errors: no MissionTracker reports
+  RUNNING, no SwarmManager reports `backup_pool = 0`. "No swarm manager"
+  and "pool empty" are indistinguishable — do not build a heuristic on it.
+- `friendly_count`/`hostile_count` are redundant with the heartbeat and
+  ADS-B tracking. Sanity check or ignore.
+- Stock QGC ignores unknown msgids, so the P8 conformance check stands.
 
 ## Map / Georeference
 

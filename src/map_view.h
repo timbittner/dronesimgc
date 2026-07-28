@@ -11,7 +11,8 @@
 class MapView : public QWidget {
     Q_OBJECT
 public:
-    MapView(EntityModel *model, const MapMeta &meta, QWidget *parent = nullptr);
+    MapView(EntityModel *model, WorldState *world, const MapMeta &meta,
+            QWidget *parent = nullptr);
 
     void setSelected(quint64 key);
 
@@ -26,6 +27,7 @@ private:
     QTransform localToWidget() const;
 
     EntityModel *model_;
+    WorldState *world_;
     MapMeta meta_;
     QPixmap albedo_;
     quint64 selected_ = 0;

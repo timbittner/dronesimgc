@@ -5,6 +5,8 @@
 #include <QString>
 #include <QUdpSocket>
 
+#include "world_state.h"
+
 // One tracked contact. Friendlies are MAVLink systems (four messages merged
 // into one row); hostiles and interceptors arrive as ADS-B traffic.
 struct Entity {
@@ -45,6 +47,9 @@ public:
 
 signals:
     void entityUpdated(const Entity &e);
+    void objectiveUpdated(const Objective &o);
+    void samSiteUpdated(const SamSite &s);
+    void statusUpdated(const MissionStatus &s);
 
 private:
     void readPending();

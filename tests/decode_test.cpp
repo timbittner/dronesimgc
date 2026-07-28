@@ -5,6 +5,8 @@
 #include <QSignalSpy>
 #include <QTest>
 
+#include "dronesim/mavlink.h"
+
 #include "entity_model.h"
 #include "mavlink_listener.h"
 
@@ -13,6 +15,21 @@
 // sim's packer is pinned against, so both ends stay pinned to pymavlink.
 class DecodeTest : public QObject {
     Q_OBJECT
+
+    static int msgIdOf(const QString &name)
+    {
+        static const QHash<QString, int> ids{
+            {"HEARTBEAT", MAVLINK_MSG_ID_HEARTBEAT},
+            {"SYS_STATUS", MAVLINK_MSG_ID_SYS_STATUS},
+            {"ATTITUDE", MAVLINK_MSG_ID_ATTITUDE},
+            {"GLOBAL_POSITION_INT", MAVLINK_MSG_ID_GLOBAL_POSITION_INT},
+            {"ADSB_VEHICLE", MAVLINK_MSG_ID_ADSB_VEHICLE},
+            {"DRONESIM_STATUS", MAVLINK_MSG_ID_DRONESIM_STATUS},
+            {"DRONESIM_OBJECTIVE", MAVLINK_MSG_ID_DRONESIM_OBJECTIVE},
+            {"DRONESIM_SAM_SITE", MAVLINK_MSG_ID_DRONESIM_SAM_SITE},
+        };
+        return ids.value(name, -1);
+    }
 
     static QHash<QString, QByteArray> frames()
     {
@@ -85,6 +102,114 @@ private slots:
         corrupt[corrupt.size() - 1] = char(corrupt.back() ^ 0xff);  // bad CRC
         l.handleDatagram(corrupt);
         QCOMPARE(spy.count(), 0);
+    }
+
+    // The vendored headers are generated from the sim's dialect XML; these
+    // frames come from the same build's vectors. If the two ever drift, the
+    // CRC_EXTRA rejects the frame and the spy stays empty.
+    void dialect_status()
+    {
+        MavlinkListener l;
+        QSignalSpy spy(&l, &MavlinkListener::statusUpdated);
+        l.handleDatagram(frames().value("dronesim_status"));
+
+        QCOMPARE(spy.count(), 1);
+        const MissionStatus s = spy.first().first().value<MissionStatus>();
+        QCOMPARE(s.state, quint8(2));
+        QCOMPARE(s.stateName(), QStringLiteral("FAILED"));
+        QCOMPARE(s.backup_pool, quint8(3));
+        QCOMPARE(s.friendly_count, quint8(5));
+        QCOMPARE(s.hostile_count, quint8(2));
+        QCOMPARE(s.objectives_total, quint8(4));
+        QCOMPARE(s.objectives_cleared, quint8(1));
+    }
+
+    void dialect_objective()
+    {
+        MavlinkListener l;
+        QSignalSpy spy(&l, &MavlinkListener::objectiveUpdated);
+        l.handleDatagram(frames().value("dronesim_objective"));
+
+        QCOMPARE(spy.count(), 1);
+        const Objective o = spy.first().first().value<Objective>();
+        QCOMPARE(o.id, quint8(2));
+        QCOMPARE(o.type, quint8(1));
+        QCOMPARE(o.label(), QStringLiteral("CRASH 2"));
+        QVERIFY(o.cleared);
+        QCOMPARE(o.lat, 51.8234567);
+        QCOMPARE(o.lon, 9.8765432);
+        QCOMPARE(o.radius, 20.5f);
+        QCOMPARE(o.progress, 0.75f);
+    }
+
+    void dialect_sam_site()
+    {
+        MavlinkListener l;
+        QSignalSpy spy(&l, &MavlinkListener::samSiteUpdated);
+        l.handleDatagram(frames().value("dronesim_sam_site"));
+
+        QCOMPARE(spy.count(), 1);
+        const SamSite s = spy.first().first().value<SamSite>();
+        QCOMPARE(s.id, quint8(3));
+        QCOMPARE(s.lat, 51.8234567);
+        QCOMPARE(s.engagement_range, 1000.0f);
+        QCOMPARE(s.reload_progress, 0.25f);
+        QVERIFY(!s.ready());  // ready is reload_progress >= 1, not a flag
+    }
+
+    void crc_extra_matches_the_sim()
+    {
+        QFile f(QStringLiteral(VECTORS_PATH));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QJsonObject crc =
+            QJsonDocument::fromJson(f.readAll()).object()["crc_extra"].toObject();
+        QVERIFY(!crc.isEmpty());
+        const mavlink_msg_entry_t *e = nullptr;
+        for (auto it = crc.begin(); it != crc.end(); ++it) {
+            const int id = msgIdOf(it.key());
+            QVERIFY2(id >= 0, qPrintable(it.key()));
+            e = mavlink_get_msg_entry(id);
+            QVERIFY2(e, qPrintable(it.key()));
+            QCOMPARE(int(e->crc_extra), it.value().toInt());
+        }
+    }
+
+    // Only transitions are events. The sim resends every objective and site at
+    // 1 Hz, so a naive "log what arrived" would fill the log with noise.
+    void world_state_logs_only_transitions()
+    {
+        WorldState w;
+        QSignalSpy ev(&w, &WorldState::event);
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+
+        Objective o;
+        o.id = 1;
+        o.last_seen = now;
+        w.onObjective(o);
+        w.onObjective(o);  // same state again: silent
+        QCOMPARE(ev.count(), 1);
+        o.cleared = true;
+        w.onObjective(o);
+        QCOMPARE(ev.count(), 2);
+        QVERIFY(ev.last().first().toString().contains("CLEARED"));
+
+        SamSite s;
+        s.id = 1;
+        s.reload_progress = 1.0f;
+        s.last_seen = now;
+        w.onSamSite(s);
+        s.reload_progress = 0.0f;  // launched
+        w.onSamSite(s);
+        QVERIFY(ev.last().first().toString().contains("fired"));
+
+        MissionStatus m;
+        m.last_seen = now;
+        w.onStatus(m);  // first status is not a transition
+        m.state = 1;
+        w.onStatus(m);
+        QCOMPARE(ev.last().first().toString(), QStringLiteral("mission SUCCESS"));
+        QCOMPARE(w.objectives().size(), 1);
+        QCOMPARE(w.samSites().size(), 1);
     }
 
     void contacts_age_out()

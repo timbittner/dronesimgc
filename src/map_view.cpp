@@ -4,8 +4,9 @@
 #include <QPainter>
 #include <QTimer>
 
-MapView::MapView(EntityModel *model, const MapMeta &meta, QWidget *parent)
-    : QWidget(parent), model_(model), meta_(meta),
+MapView::MapView(EntityModel *model, WorldState *world, const MapMeta &meta,
+                 QWidget *parent)
+    : QWidget(parent), model_(model), world_(world), meta_(meta),
       albedo_(QStringLiteral(":/sebexen/albedo.png"))
 {
     setMinimumSize(480, 360);
@@ -46,6 +47,47 @@ void MapView::paintEvent(QPaintEvent *)
                            meta_.grid_width * meta_.cell_size,
                            meta_.grid_height * meta_.cell_size);
     p.drawPixmap(t.mapRect(map_local), albedo_, map_px);
+
+    // World furniture first — it is background for the contacts, not a peer.
+    const double m_to_px = t.m11();  // uniform scale: metres -> widget pixels
+
+    for (const SamSite &s : world_->samSites()) {
+        const QPointF pos = t.map(latlonToLocal(meta_, s.lat, s.lon));
+        const QColor c = s.ready() ? QColor(255, 90, 60) : QColor(150, 110, 90);
+        QPen ring(c, s.ready() ? 1.6 : 1.0);
+        // A reloading site cannot shoot: dashed reads as "not live" at a glance.
+        if (!s.ready())
+            ring.setStyle(Qt::DashLine);
+        p.setPen(ring);
+        p.setBrush(Qt::NoBrush);
+        p.drawEllipse(pos, s.engagement_range * m_to_px, s.engagement_range * m_to_px);
+        p.setBrush(c);
+        p.drawRect(QRectF(pos - QPointF(4, 4), QSizeF(8, 8)));
+        p.setPen(c);
+        p.drawText(pos + QPointF(8, -6),
+                   s.ready() ? QStringLiteral("SAM %1 ready").arg(s.id)
+                             : QStringLiteral("SAM %1 %2%").arg(s.id)
+                                   .arg(s.reload_progress * 100, 0, 'f', 0));
+    }
+
+    for (const Objective &o : world_->objectives()) {
+        const QPointF pos = t.map(latlonToLocal(meta_, o.lat, o.lon));
+        const double r = o.radius * m_to_px;
+        const QColor c = o.cleared ? QColor(90, 220, 120) : QColor(245, 225, 90);
+        p.setPen(QPen(c, 1.2));
+        p.setBrush(QColor(c.red(), c.green(), c.blue(), 30));
+        p.drawEllipse(pos, r, r);
+        // Dwell is OBSERVE-only, so it is drawn only where it means something.
+        if (o.type == 0 && o.progress > 0.0f) {
+            p.setBrush(Qt::NoBrush);
+            p.setPen(QPen(c, 3));
+            p.drawArc(QRectF(pos.x() - r, pos.y() - r, 2 * r, 2 * r), 90 * 16,
+                      -int(o.progress * 360 * 16));
+        }
+        p.setPen(c);
+        p.drawText(pos + QPointF(r + 4, 4),
+                   o.cleared ? o.label() + QStringLiteral(" ✓") : o.label());
+    }
 
     for (const Entity &e : model_->entities()) {
         const QPointF pos = t.map(latlonToLocal(meta_, e.lat, e.lon));

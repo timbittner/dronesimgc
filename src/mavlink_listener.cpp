@@ -5,7 +5,7 @@
 
 #include <cmath>
 
-#include "common/mavlink.h"
+#include "dronesim/mavlink.h"
 
 MavlinkListener::MavlinkListener(QObject *parent) : QObject(parent)
 {
@@ -53,6 +53,51 @@ void MavlinkListener::handleDatagram(const QByteArray &data)
             e.climb = a.ver_velocity / 100.0f;
             e.last_seen = now;
             emit entityUpdated(e);
+            continue;
+        }
+
+        // The dialect (55000+) describes the world, not a vehicle, so none of
+        // it touches the per-sysid merge below.
+        if (msg.msgid == MAVLINK_MSG_ID_DRONESIM_STATUS) {
+            mavlink_dronesim_status_t d;
+            mavlink_msg_dronesim_status_decode(&msg, &d);
+            MissionStatus s;
+            s.state = d.mission_state;
+            s.backup_pool = d.backup_pool;
+            s.friendly_count = d.friendly_count;
+            s.hostile_count = d.hostile_count;
+            s.objectives_total = d.objectives_total;
+            s.objectives_cleared = d.objectives_cleared;
+            s.last_seen = now;
+            emit statusUpdated(s);
+            continue;
+        }
+        if (msg.msgid == MAVLINK_MSG_ID_DRONESIM_OBJECTIVE) {
+            mavlink_dronesim_objective_t d;
+            mavlink_msg_dronesim_objective_decode(&msg, &d);
+            Objective o;
+            o.id = d.id;
+            o.type = d.type;
+            o.cleared = d.cleared != 0;
+            o.lat = d.lat / 1e7;
+            o.lon = d.lon / 1e7;
+            o.radius = d.radius;
+            o.progress = d.progress;
+            o.last_seen = now;
+            emit objectiveUpdated(o);
+            continue;
+        }
+        if (msg.msgid == MAVLINK_MSG_ID_DRONESIM_SAM_SITE) {
+            mavlink_dronesim_sam_site_t d;
+            mavlink_msg_dronesim_sam_site_decode(&msg, &d);
+            SamSite s;
+            s.id = d.id;
+            s.lat = d.lat / 1e7;
+            s.lon = d.lon / 1e7;
+            s.engagement_range = d.engagement_range;
+            s.reload_progress = d.reload_progress;
+            s.last_seen = now;
+            emit samSiteUpdated(s);
             continue;
         }
 

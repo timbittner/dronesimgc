@@ -48,6 +48,27 @@
       "sysid": 7,
       "compid": 1,
       "hex": "fd090000ff07010000000000000002008004031ce5"
+    },
+    {
+      "name": "dronesim_status",
+      "seq": 6,
+      "sysid": 7,
+      "compid": 1,
+      "hex": "fd060000060701d8d6000203050204018d72"
+    },
+    {
+      "name": "dronesim_objective",
+      "seq": 7,
+      "sysid": 7,
+      "compid": 1,
+      "hex": "fd130000070701d9d600c7a1e31e780ae3050000a4410000403f020101beb0"
+    },
+    {
+      "name": "dronesim_sam_site",
+      "seq": 8,
+      "sysid": 7,
+      "compid": 1,
+      "hex": "fd110000080701dad600c7a1e31e780ae30500007a440000803e032d85"
     }
   ],
   "geo": {
@@ -81,5 +102,15 @@
         "lon": 10.02957711546936
       }
     ]
+  },
+  "crc_extra": {
+    "HEARTBEAT": 50,
+    "SYS_STATUS": 124,
+    "ATTITUDE": 39,
+    "GLOBAL_POSITION_INT": 104,
+    "ADSB_VEHICLE": 184,
+    "DRONESIM_STATUS": 94,
+    "DRONESIM_OBJECTIVE": 221,
+    "DRONESIM_SAM_SITE": 146
   }
 }

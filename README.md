@@ -5,7 +5,9 @@ swarm simulator. It listens to the sim's MAVLink v2 downlink and renders the
 battlespace over the baked Sebexen map: friendlies as vehicles, hostiles and
 SAM interceptors as ADS-B traffic.
 
-Phase 9.1: read-only — entity table + map view against the stock P8 stream.
+Phase 9.2: read-only — entity table, map view, mission/pool panel and event
+log, over the P8 stream plus the sim's custom dialect (objectives, SAM sites,
+mission state).
 
 ## Build
 
@@ -27,14 +29,18 @@ status bar says so if the bind fails).
 
 ## Syncing from the sim
 
-`tools/sync_map.sh` copies the map pair and the golden wire vectors out of a
-dronesim checkout (`DRONESIM_DIR`, default `~/dev/dronesim`). Nothing under
-`assets/` is edited here. The MAVLink headers under `third_party/mavlink/` are
-mavgen output; regenerate them when the dialect changes:
+Two scripts, both taking `DRONESIM_DIR` (default `~/dev/dronesim`):
 
 ```bash
-mavgen.py --lang=C --wire-protocol=2.0 -o third_party/mavlink <dialect>.xml
+tools/sync_dialect.sh   # third_party/mavlink/ from the sim's dronesim.xml
+tools/sync_map.sh       # albedo.png + map.json + tests/mavlink_vectors.json
 ```
+
+Run the dialect one first after a protocol change, then the map one so the
+vendored headers and the golden vectors come from the same sim build — the
+decode test fails loudly if they don't. Nothing under `assets/`,
+`third_party/` or `tests/mavlink_vectors.json` is hand-edited here.
+`sync_dialect.sh` needs pymavlink (it uses the sim's `.venv` by default).
 
 ## Attribution
 
